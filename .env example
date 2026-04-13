@@ -1,0 +1,19 @@
+#Configuración de VictoriaMetrics
+#Endpoint de Ingestión HTTP para el protocolo de texto de Prometheus
+VICTORIA_METRICS_URL="http:///api/v1/import/prometheus"
+
+#Configuración del PLC
+PLC_IP="192.168."
+PLC_RACK=0
+PLC_SLOT=3
+
+#Intervalos de tiempo
+RETRY_DELAY=10
+SENSOR_READ_INTERVAL=0.5
+
+#Configuración de MQTT
+MQTT_BROKER="192.168."
+MQTT_PORT=1883
+MQTT_TOPIC_PREFIX="plc/sensores"
+MQTT_USER=""
+MQTT_PASSWORD=""
