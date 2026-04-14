@@ -37,7 +37,7 @@ SENSOR_READ_INTERVAL = float(os.getenv("SENSOR_READ_INTERVAL", 2))
 
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
-MQTT_TOPIC_PREFIX = os.getenv("MQTT_TOPIC_PREFIX", "plc/sensores")
+MQTT_TOPIC_PREFIX = os.getenv("MQTT_TOPIC_PREFIX", "plc/sensors")
 MQTT_USER = os.getenv("MQTT_USER")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
 
@@ -121,7 +121,7 @@ def mqtt_worker():
             
             for topic, valor, ts in batch:
                 # Volvemos a nombres descriptivos para mejorar la legibilidad
-                msg = f'{{"valor":{valor},"timestamp":{int(ts)}}}'
+                msg = f'{{"value":{valor},"timestamp":{int(ts)}}}'
                 client.publish(topic, msg, qos=0)
                 
         except Exception as e:
