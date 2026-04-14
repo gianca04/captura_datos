@@ -119,8 +119,8 @@ def mqtt_worker():
             if batch is None: break
             
             for topic, equipo, valor, ts in batch:
-                # El campo de valor ahora llevará el nombre de la marca (ej. FIT_001)
-                msg = f'{{"{equipo}":{valor},"timestamp":{int(ts)}}}'
+                # El campo de valor siempre debe ser genérico ('value') para el estándar de Series de Tiempo
+                msg = f'{{"value":{valor},"timestamp":{int(ts)}}}'
                 client.publish(topic, msg, qos=0)
                 
         except Exception as e:
