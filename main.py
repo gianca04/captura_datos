@@ -57,7 +57,6 @@ MARCAS = {
 def print_ascii_logo():
     # Definición de colores
     GREEN = "\033[1;32m"
-    GREEN = "\033[1;37m"
     RESET = "\033[0m"
     
     ascii_art = f"""
@@ -115,13 +114,13 @@ def mqtt_worker():
 
     while True:
         try:
-            # batch es una lista de (topic, valor, timestamp)
+            # batch es una lista de (topic, equipo, valor, timestamp)
             batch = metrics_queue.get()
             if batch is None: break
             
-            for topic, valor, ts in batch:
-                # Volvemos a nombres descriptivos para mejorar la legibilidad
-                msg = f'{{"value":{valor},"timestamp":{int(ts)}}}'
+            for topic, equipo, valor, ts in batch:
+                # El campo de valor ahora llevará el nombre de la marca (ej. FIT_001)
+                msg = f'{{"{equipo}":{valor},"timestamp":{int(ts)}}}'
                 client.publish(topic, msg, qos=0)
                 
         except Exception as e:
@@ -140,6 +139,7 @@ def main():
     for equipo, variables in MARCAS.items():
         for var_name, (db, byte_off, bit_off, dtype) in variables.items():
             tags_info.append({
+                'equipo': equipo,
                 'db': db,
                 'offset': byte_off,
                 'bit': bit_off,
@@ -183,7 +183,7 @@ def main():
                     else:
                         valor = 1 if get_bool(data, 0, info['bit']) else 0
                     
-                    batch.append((info['topic'], valor, ts))
+                    batch.append((info['topic'], info['equipo'], valor, ts))
             
             if batch:
                 metrics_queue.put(batch)

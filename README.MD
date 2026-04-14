@@ -11,7 +11,7 @@ La topología del sistema se compone de cinco capas fundamentales integradas esc
 Script de Python operando con la biblioteca `snap7` para la comunicación directa a nivel de protocolo con el autómata Siemens. Permite extraer bloques contiguos de memoria que contienen variables de proceso (ej. Caudales, Niveles, Temperaturas) en un único ciclo de red, reduciendo el "overhead" en la tarjeta de comunicaciones del PLC.
 
 ### Capa de Mensajería (Broker MQTT)
-Las métricas crudas se convierten a JSON y se difunden en un broker MQTT. MQTT proporciona un bus de mensajería asíncrono, liviano y altamente robusto ante interrupciones. Las publicaciones siguen una convención semántica de jerarquía de tópicos: `plc/sensores/<equipo>/<variable>`.
+Las métricas crudas se convierten a JSON y se difunden en un broker MQTT. MQTT proporciona un bus de mensajería asíncrono, liviano y altamente robusto ante interrupciones. Las publicaciones siguen una convención semántica de jerarquía de tópicos: `plc/sensors/<equipo>/<variable>`.
 
 ### Capa de Ingesta y Enrutamiento (Telegraf)
 Actúa como router y transformador de métricas. Telegraf se suscribe al broker MQTT, procesa los tópicos dinámicos para extraer el árbol de jerarquía como etiquetas (tags indexables) y transforma la carga útil al protocolo de InfluxDB (Influx Line Protocol) para maximizar la compresión y eficiencia de transferencia.
