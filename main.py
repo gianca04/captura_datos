@@ -115,13 +115,13 @@ def mqtt_worker():
 
     while True:
         try:
-            # batch es una lista de (topic, var_name, valor, timestamp)
+            # batch es una lista de (topic, valor, timestamp)
             batch = metrics_queue.get()
             if batch is None: break
             
-            for topic, var_name, valor, ts in batch:
-                # Usamos el var_name (Flow, Temp, etc.) como clave JSON para que Telegraf lo pase a Grafana
-                msg = f'{{"{var_name}":{valor},"timestamp":{int(ts)}}}'
+            for topic, valor, ts in batch:
+                # Volvemos a nombres descriptivos para mejorar la legibilidad
+                msg = f'{{"valor":{valor},"timestamp":{int(ts)}}}'
                 client.publish(topic, msg, qos=0)
                 
         except Exception as e:
@@ -144,7 +144,6 @@ def main():
                 'offset': byte_off,
                 'bit': bit_off,
                 'type': dtype,
-                'var_name': var_name,
                 'amount': 4 if dtype == 'REAL' else 1,
                 'topic': f"{MQTT_TOPIC_PREFIX}/{equipo}/{var_name}"
             })
@@ -184,8 +183,7 @@ def main():
                     else:
                         valor = 1 if get_bool(data, 0, info['bit']) else 0
                     
-                    # Usamos el nombre real de la variable (Flow, Level, etc.) como clave en el JSON
-                    batch.append((info['topic'], info['var_name'], valor, ts))
+                    batch.append((info['topic'], valor, ts))
             
             if batch:
                 metrics_queue.put(batch)
