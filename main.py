@@ -5,6 +5,8 @@ import json
 import threading
 import queue
 import ctypes
+import signal
+import sys
 from ctypes import byref, POINTER, c_void_p, c_ubyte
 import snap7
 from snap7.util import get_real, get_bool
@@ -42,7 +44,17 @@ MQTT_USER = os.getenv("MQTT_USER")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
 
 # 3. Globales para multihilo
-metrics_queue = queue.Queue()
+# Limitamos la cola a 5000 para evitar OOM (Out Of Memory)
+metrics_queue = queue.Queue(maxsize=5000)
+running = True
+
+def signal_handler(sig, frame):
+    global running
+    logging.info("Señal de interrupcion recibida. Apagando sistema...")
+    running = False
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 # 4. Direcciones de memoria del PLC
 MARCAS = {
@@ -102,7 +114,7 @@ def mqtt_worker():
     if MQTT_USER and MQTT_PASSWORD:
         client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
         
-    while True:
+    while running:
         try:
             client.connect(MQTT_BROKER, MQTT_PORT, 10)
             client.loop_start()
@@ -112,21 +124,28 @@ def mqtt_worker():
             logging.error(f"Error Broker: {e}")
             time.sleep(RETRY_DELAY)
 
-    while True:
+    while running:
         try:
-            # batch es una lista de (topic, equipo, valor, timestamp)
-            batch = metrics_queue.get()
+            # Usamos timeout para poder verificar 'running' periodicamente
+            batch = metrics_queue.get(timeout=1.0)
             if batch is None: break
             
             for topic, equipo, valor, ts in batch:
                 # El campo de valor siempre debe ser genérico ('value') para el estándar de Series de Tiempo
-                msg = f'{{"value":{valor},"timestamp":{int(ts)}}}'
-                client.publish(topic, msg, qos=0)
+                msg = f'{{"value":{valor},"timestamp":{ts}}}'
+                # Subimos QoS a 1 (al menos una vez) para asegurar que no se pierdan datos importantes
+                client.publish(topic, msg, qos=1)
                 
+            metrics_queue.task_done()
+        except queue.Empty:
+            continue
         except Exception as e:
             logging.error(f"Error publicación: {e}")
-        finally:
-            metrics_queue.task_done()
+
+    # Cierre limpio del worker MQTT
+    logging.info("Deteniendo Worker MQTT de forma limpia...")
+    client.loop_stop()
+    client.disconnect()
 
 def main():
     # Iniciar worker en background
@@ -162,7 +181,7 @@ def main():
     
     logging.info("Sistema listo. Iniciando publicación con MQTT.")
     
-    while True:
+    while running:
         try:
             if not plc.get_connected():
                 plc = connect_plc()
@@ -171,7 +190,8 @@ def main():
             ret_code, results = plc.read_multi_vars(data_items)
             
             batch = []
-            ts = time.time()
+            # Generamos timestamp en milisegundos para exactitud en TSDB
+            ts_ms = int(time.time() * 1000)
             
             for i, item in enumerate(results):
                 if item.Result == 0:
@@ -183,16 +203,24 @@ def main():
                     else:
                         valor = 1 if get_bool(data, 0, info['bit']) else 0
                     
-                    batch.append((info['topic'], info['equipo'], valor, ts))
+                    batch.append((info['topic'], info['equipo'], valor, ts_ms))
             
             if batch:
-                metrics_queue.put(batch)
+                try:
+                    # Usamos put_nowait para no bloquear el bucle de lectura si se cae MQTT
+                    metrics_queue.put_nowait(batch)
+                except queue.Full:
+                    logging.warning("Cola MQTT llena. Descartando lote temporal para dar prioridad a la latencia.")
                 
             time.sleep(SENSOR_READ_INTERVAL)
             
         except Exception as e:
             logging.error(f"Error en bucle: {e}")
             time.sleep(RETRY_DELAY)
+
+    if plc.get_connected():
+        plc.disconnect()
+        logging.info("PLC Desconectado de forma segura.")
 
 if __name__ == "__main__":
     main()
