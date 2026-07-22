@@ -78,10 +78,10 @@ class IIoTGateway:
                     should_publish = False
                     
                     if dtype == 'BOOL':
-                        # Detección de flanco delegada al EventDetector
-                        if last_val is not None and last_val != valor:
+                        # Detección de cambio de estado
+                        if last_val is None or last_val != valor:
                             should_publish = True
-                    elif dtype == 'REAL':
+                    else: # REAL, WORD, INT, BYTE
                         # Detección por Banda Muerta (Deadband)
                         if last_val is None or abs(last_val - valor) >= info['deadband']:
                             should_publish = True
@@ -112,10 +112,15 @@ class IIoTGateway:
                     info['last_publish'] = current_time
                     
                     # Mapear tipos y valores a Sparkplug B
-                    # Nota: BOOL se envía como INT32 (0/1) para compatibilidad con Grafana Live,
-                    # que trata boolean=false como celda vacía en tablas y paneles.
-                    psp_dtype = psp.DataType.INT32 if dtype == 'BOOL' else psp.DataType.FLOAT
-                    casted_val = int(bool(valor)) if dtype == 'BOOL' else float(valor)
+                    if dtype == 'BOOL':
+                        psp_dtype = psp.DataType.INT32
+                        casted_val = int(bool(valor))
+                    elif dtype in ('INT', 'WORD', 'BYTE'):
+                        psp_dtype = psp.DataType.INT32
+                        casted_val = int(valor)
+                    else:
+                        psp_dtype = psp.DataType.FLOAT
+                        casted_val = float(valor)
                     
                     metric = psp.Metric(
                         timestamp=ts_ms,
