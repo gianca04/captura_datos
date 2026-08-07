@@ -112,10 +112,7 @@ class IIoTGateway:
                     info['last_publish'] = current_time
                     
                     # Mapear tipos y valores a Sparkplug B
-                    if dtype == 'BOOL':
-                        psp_dtype = psp.DataType.INT32
-                        casted_val = int(bool(valor))
-                    elif dtype in ('INT', 'WORD', 'BYTE'):
+                    if dtype in ('BOOL', 'INT', 'WORD', 'BYTE', 'DWORD', 'DINT'):
                         psp_dtype = psp.DataType.INT32
                         casted_val = int(valor)
                     else:

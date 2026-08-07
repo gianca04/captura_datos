@@ -46,9 +46,12 @@ class MQTTPublisher:
             for var_name, config_list in variables.items():
                 dtype = config_list[3]
                 # Asignar tipos e inicializar valores de nacimiento (DBIRTH)
-                # Nota: BOOL declarado como INT32 (0/1) para compatibilidad con Grafana Live
-                psp_dtype = psp.DataType.INT32 if dtype == 'BOOL' else psp.DataType.FLOAT
-                default_val = 0 if dtype == 'BOOL' else 0.0
+                if dtype in ('BOOL', 'WORD', 'INT', 'BYTE', 'DWORD', 'DINT'):
+                    psp_dtype = psp.DataType.INT32
+                    default_val = 0
+                else:
+                    psp_dtype = psp.DataType.FLOAT
+                    default_val = 0.0
                 
                 metric = psp.Metric(
                     timestamp=int(time.time() * 1000),
